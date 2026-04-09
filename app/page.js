@@ -589,8 +589,14 @@ export default function HomePage() {
                 type="number"
                 min="1"
                 max="100"
+                placeholder="Enter threshold..."
                 value={highlightLimit}
-                onChange={(event) => setHighlightLimit(Math.max(1, Number(event.target.value) || 1))}
+                onChange={(event) => {
+                  const val = event.target.value ? Number(event.target.value) : '';
+                  if (val === '' || val >= 1) {
+                    setHighlightLimit(val === '' ? 3 : Math.max(1, val));
+                  }
+                }}
                 className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-500"
               />
 
