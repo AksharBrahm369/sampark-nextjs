@@ -475,7 +475,7 @@ export default function HomePage() {
               Sabha Follow-up Command Center
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-indigo-100 sm:text-base">
-              Leader-ready weekly operations dashboard with persistent master data, smart matching, and instant follow-up actions.
+              Leader-ready weekly operations dashboard built for weekly absent uploads, smart grouping, and instant follow-up actions.
             </p>
           </div>
 
