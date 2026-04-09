@@ -117,6 +117,8 @@ function parseCsvFile(file) {
 
 export default function HomePage() {
   const weeklyTableRef = useRef(null);
+  const resultsSectionRef = useRef(null);
+  const previousDataLengthRef = useRef(0);
   const [masterRows, setMasterRows] = useState([]);
   const [masterFileName, setMasterFileName] = useState("");
   const [masterUpdatedAt, setMasterUpdatedAt] = useState("");
@@ -331,6 +333,19 @@ export default function HomePage() {
 
   const hasData = matchedRows.length > 0;
   const hasSessionData = masterRows.length > 0 || absentRows.length > 0 || matchedRows.length > 0;
+
+  useEffect(() => {
+    const hadDataBefore = previousDataLengthRef.current > 0;
+    const hasDataNow = matchedRows.length > 0;
+
+    if (!hadDataBefore && hasDataNow) {
+      window.requestAnimationFrame(() => {
+        resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+
+    previousDataLengthRef.current = matchedRows.length;
+  }, [matchedRows.length]);
 
   useEffect(() => {
     if (!hasSessionData) return undefined;
@@ -635,7 +650,7 @@ export default function HomePage() {
         </section>
 
         {hasData && (
-          <>
+          <div ref={resultsSectionRef}>
             <section className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               <div className="rounded-2xl border border-indigo-100 bg-white p-3 sm:p-4 shadow-md shadow-indigo-100/60 flex flex-col justify-center">
                 <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-indigo-500 truncate">Total Follow-ups</p>
@@ -774,7 +789,7 @@ export default function HomePage() {
                 </ResponsiveContainer>
               </div>
             </section>
-          </>
+          </div>
         )}
       </div>
     </main>
