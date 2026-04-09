@@ -18,6 +18,7 @@ import {
 } from "recharts";
 
 const MASTER_STORAGE_KEY = "sampark_master_database_v1";
+const ABSENT_STORAGE_KEY = "sampark_absent_database_v1";
 const MATCHED_ROWS_STORAGE_KEY = "sampark_weekly_followup_rows_v1";
 const REFRESH_WARNING_MESSAGE = "Warning: Refreshing will clear all data. Do you wish to proceed?";
 
@@ -128,51 +129,53 @@ export default function HomePage() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(MASTER_STORAGE_KEY);
-      if (!raw) return;
-
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed?.rows)) return;
-
-      setMasterRows(parsed.rows);
-      setMasterFileName(parsed.fileName || "Master CSV");
-      setMasterUpdatedAt(parsed.updatedAt || "");
+      const rawMaster = localStorage.getItem(MASTER_STORAGE_KEY);
+      if (rawMaster) {
+        const parsed = JSON.parse(rawMaster);
+        if (Array.isArray(parsed?.rows)) {
+          setMasterRows(parsed.rows);
+          setMasterFileName(parsed.fileName || "Master CSV");
+          setMasterUpdatedAt(parsed.updatedAt || "");
+        }
+      }
     } catch {
       localStorage.removeItem(MASTER_STORAGE_KEY);
+    }
+
+    try {
+      const rawAbsent = localStorage.getItem(ABSENT_STORAGE_KEY);
+      if (rawAbsent) {
+        const parsed = JSON.parse(rawAbsent);
+        if (Array.isArray(parsed?.rows)) {
+          setAbsentRows(parsed.rows);
+          setAbsentFileName(parsed.fileName || "");
+        }
+      }
+    } catch {
+      localStorage.removeItem(ABSENT_STORAGE_KEY);
     }
   }, []);
 
   const matchedRows = useMemo(() => {
-    if (!absentRows.length) return [];
+    if (!masterRows.length || !absentRows.length) return [];
 
     const masterHeaders = Object.keys(masterRows[0] || {});
     const absentHeaders = Object.keys(absentRows[0] || {});
-    const canUseMasterMatching = masterRows.length > 0;
 
-    const masterFirstNameKey = canUseMasterMatching
-      ? findColumnKeySafe(masterHeaders, ["first name", "firstname", "given name"], ["date"])
-      : null;
-    const masterLastNameKey = canUseMasterMatching
-      ? findColumnKeySafe(masterHeaders, ["last name", "lastname", "surname", "family name"], ["date"])
-      : null;
-    const masterNameKey = canUseMasterMatching
-      ? findColumnKeySafe(
-          masterHeaders,
-          ["member name", "full name", "name"],
-          ["karyakarta", "follow", "volunteer", "sevak", "assigned"],
-        )
-      : null;
-    const masterMobileKey = canUseMasterMatching
-      ? findColumnKeySafe(masterHeaders, ["mobile", "phone", "contact", "whatsapp", "number"])
-      : null;
-    const masterFollowupKey = canUseMasterMatching
-      ? findColumnKeySafe(
-          masterHeaders,
-          ["followup", "follow up", "karyakarta", "karya", "volunteer", "assigned", "sevak", "caller"],
-          ["member", "student", "parent"],
-        )
-      : null;
-    const masterAbsentKey = canUseMasterMatching ? findColumnKey(masterHeaders, ["absent", "absence", "missed"]) : null;
+    const masterFirstNameKey = findColumnKeySafe(masterHeaders, ["first name", "firstname", "given name"], ["date"]);
+    const masterLastNameKey = findColumnKeySafe(masterHeaders, ["last name", "lastname", "surname", "family name"], ["date"]);
+    const masterNameKey = findColumnKeySafe(
+      masterHeaders,
+      ["member name", "full name", "name"],
+      ["karyakarta", "follow", "volunteer", "sevak", "assigned"],
+    );
+    const masterMobileKey = findColumnKeySafe(masterHeaders, ["mobile", "phone", "contact", "whatsapp", "number"]);
+    const masterFollowupKey = findColumnKeySafe(
+      masterHeaders,
+      ["followup", "follow up", "karyakarta", "karya", "volunteer", "assigned", "sevak", "caller"],
+      ["member", "student", "parent"],
+    );
+    const masterAbsentKey = findColumnKey(masterHeaders, ["absent", "absence", "missed"]);
 
     const absentNameKey = findColumnKeySafe(
       absentHeaders,
@@ -191,24 +194,22 @@ export default function HomePage() {
       return [];
     }
 
-    const masterPrepared = canUseMasterMatching
-      ? masterRows.map((row) => {
-          const firstName = masterFirstNameKey ? String(row[masterFirstNameKey] ?? "") : "";
-          const lastName = masterLastNameKey ? String(row[masterLastNameKey] ?? "") : "";
-          const combinedFullName = `${firstName} ${lastName}`.trim();
-          const fallbackName = masterNameKey ? String(row[masterNameKey] ?? "") : "";
-          const displayName = combinedFullName || fallbackName;
+    const masterPrepared = masterRows.map((row) => {
+      const firstName = masterFirstNameKey ? String(row[masterFirstNameKey] ?? "") : "";
+      const lastName = masterLastNameKey ? String(row[masterLastNameKey] ?? "") : "";
+      const combinedFullName = `${firstName} ${lastName}`.trim();
+      const fallbackName = masterNameKey ? String(row[masterNameKey] ?? "") : "";
+      const displayName = combinedFullName || fallbackName;
 
-          return {
-            raw: row,
-            memberName: displayName,
-            normalizedName: normalize(displayName),
-            mobile: cleanMobile(masterMobileKey ? row[masterMobileKey] : ""),
-            followup: String(masterFollowupKey ? row[masterFollowupKey] : "").trim(),
-            absentCount: toNumber(masterAbsentKey ? row[masterAbsentKey] : 0),
-          };
-        })
-      : [];
+      return {
+        raw: row,
+        memberName: displayName,
+        normalizedName: normalize(displayName),
+        mobile: cleanMobile(masterMobileKey ? row[masterMobileKey] : ""),
+        followup: String(masterFollowupKey ? row[masterFollowupKey] : "").trim(),
+        absentCount: toNumber(masterAbsentKey ? row[masterAbsentKey] : 0),
+      };
+    });
 
     const aggregatedWeekly = new Map();
 
@@ -240,21 +241,7 @@ export default function HomePage() {
       }
     });
 
-    const weeklyRows = Array.from(aggregatedWeekly.values());
-
-    if (!canUseMasterMatching) {
-      return weeklyRows
-        .map(({ absentName, absentMobile, weeklyAbsentCount, weeklyFollowup }) => ({
-          memberName: absentName,
-          mobile: absentMobile,
-          followup: weeklyFollowup || "Unassigned",
-          absentCount: Math.max(1, weeklyAbsentCount),
-          matchStatus: "Absent only",
-        }))
-        .filter(Boolean);
-    }
-
-    return weeklyRows
+    return Array.from(aggregatedWeekly.values())
       .map((weeklyRow) => {
         const { absentName, normalizedAbsentName, absentMobile, weeklyAbsentCount, weeklyFollowup } = weeklyRow;
 
@@ -370,14 +357,6 @@ export default function HomePage() {
 
     localStorage.setItem(MATCHED_ROWS_STORAGE_KEY, JSON.stringify(matchedRows));
   }, [matchedRows]);
-
-  useEffect(() => {
-    if (hasData && weeklyTableRef.current) {
-      setTimeout(() => {
-        weeklyTableRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
-    }
-  }, [hasData]);
 
   const karyakartaOptions = useMemo(() => {
     const names = new Set(matchedRows.map((row) => row.followup || "Unassigned"));
@@ -500,6 +479,7 @@ export default function HomePage() {
 
       setAbsentRows(rows);
       setAbsentFileName(file.name);
+      localStorage.setItem(ABSENT_STORAGE_KEY, JSON.stringify({ rows, fileName: file.name }));
     } catch {
       setError("Unable to parse Weekly Absent CSV. Please upload a valid file.");
     }
@@ -507,6 +487,7 @@ export default function HomePage() {
 
   const clearMasterDatabase = () => {
     localStorage.removeItem(MASTER_STORAGE_KEY);
+    localStorage.removeItem(ABSENT_STORAGE_KEY);
     setMasterRows([]);
     setMasterFileName("");
     setMasterUpdatedAt("");
@@ -516,6 +497,7 @@ export default function HomePage() {
   };
 
   const clearWeeklyData = () => {
+    localStorage.removeItem(ABSENT_STORAGE_KEY);
     setAbsentRows([]);
     setAbsentFileName("");
     setSelectedKaryakarta("All");
@@ -525,10 +507,21 @@ export default function HomePage() {
     if (!weeklyTableRef.current) return;
 
     try {
-      const dataUrl = await toPng(weeklyTableRef.current, {
+      const tableEl = weeklyTableRef.current;
+      const exportWidth = tableEl.scrollWidth;
+      const exportHeight = tableEl.scrollHeight;
+
+      const dataUrl = await toPng(tableEl, {
         cacheBust: true,
         pixelRatio: Math.max(window.devicePixelRatio || 1, 2),
         backgroundColor: "#ffffff",
+        width: exportWidth,
+        height: exportHeight,
+        style: {
+          width: `${exportWidth}px`,
+          height: `${exportHeight}px`,
+          margin: "0",
+        },
       });
 
       const link = document.createElement("a");
@@ -554,9 +547,9 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-2">
-            <div className="hidden rounded-2xl border border-indigo-100 bg-linear-to-b from-white to-indigo-50/70 p-4 shadow-sm" aria-hidden="true">
-                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Step 1</p>
+          <div className="grid gap-4 p-5 sm:p-6 sm:grid-cols-2 lg:grid-cols-2">
+            <div className="hidden rounded-2xl border border-indigo-100 bg-linear-to-b from-white to-indigo-50/70 p-4 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Step 1</p>
               <h2 className="mt-1 text-sm font-bold text-slate-900">Upload Master CSV</h2>
               <p className="mt-1 text-xs text-slate-600">Saved in browser memory. Upload only when master data changes.</p>
               <input
