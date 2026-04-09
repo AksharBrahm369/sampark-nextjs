@@ -519,9 +519,9 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-3">
-            <div className="rounded-2xl border border-indigo-100 bg-linear-to-b from-white to-indigo-50/70 p-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Step 1</p>
+          <div className="grid gap-4 p-5 sm:p-6 sm:grid-cols-2 lg:grid-cols-2">
+            <div className="hidden rounded-2xl border border-indigo-100 bg-linear-to-b from-white to-indigo-50/70 p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Step 1</p>
               <h2 className="mt-1 text-sm font-bold text-slate-900">Upload Master CSV</h2>
               <p className="mt-1 text-xs text-slate-600">Saved in browser memory. Upload only when master data changes.</p>
               <input
