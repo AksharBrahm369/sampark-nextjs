@@ -124,7 +124,7 @@ export default function HomePage() {
   const [absentFileName, setAbsentFileName] = useState("");
   const [error, setError] = useState("");
   const [selectedKaryakarta, setSelectedKaryakarta] = useState("All");
-  const [highlightLimit, setHighlightLimit] = useState(3);
+  const [highlightLimit, setHighlightLimit] = useState(4);
 
   useEffect(() => {
     try {
@@ -519,8 +519,8 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid gap-4 p-5 sm:p-6 sm:grid-cols-2 lg:grid-cols-2">
-            <div className="hidden rounded-2xl border border-indigo-100 bg-linear-to-b from-white to-indigo-50/70 p-4 shadow-sm">
+          <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-2">
+            <div className="hidden rounded-2xl border border-indigo-100 bg-linear-to-b from-white to-indigo-50/70 p-4 shadow-sm" aria-hidden="true">
                 <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Step 1</p>
               <h2 className="mt-1 text-sm font-bold text-slate-900">Upload Master CSV</h2>
               <p className="mt-1 text-xs text-slate-600">Saved in browser memory. Upload only when master data changes.</p>
@@ -589,15 +589,11 @@ export default function HomePage() {
                 type="number"
                 min="1"
                 max="100"
-                placeholder="Enter threshold..."
+                step="1"
+                inputMode="numeric"
                 value={highlightLimit}
-                onChange={(event) => {
-                  const val = event.target.value ? Number(event.target.value) : '';
-                  if (val === '' || val >= 1) {
-                    setHighlightLimit(val === '' ? 3 : Math.max(1, val));
-                  }
-                }}
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-500"
+                onChange={(event) => setHighlightLimit(Math.max(1, Number(event.target.value) || 1))}
+                className="mt-1 w-full max-w-28 rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-base font-semibold text-slate-700 outline-none focus:border-indigo-500 sm:max-w-32 sm:text-sm"
               />
 
               <p className="mt-3 text-xs text-slate-500">
