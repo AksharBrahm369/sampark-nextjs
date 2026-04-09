@@ -17,7 +17,6 @@ import {
   YAxis,
 } from "recharts";
 
-const MASTER_STORAGE_KEY = "sampark_master_database_v1";
 const ABSENT_STORAGE_KEY = "sampark_absent_database_v1";
 const MATCHED_ROWS_STORAGE_KEY = "sampark_weekly_followup_rows_v1";
 const REFRESH_WARNING_MESSAGE = "Warning: Refreshing will clear all data. Do you wish to proceed?";
@@ -119,9 +118,6 @@ function parseCsvFile(file) {
 export default function HomePage() {
   const weeklyTableRef = useRef(null);
   const resultsRef = useRef(null);
-  const [masterRows, setMasterRows] = useState([]);
-  const [masterFileName, setMasterFileName] = useState("");
-  const [masterUpdatedAt, setMasterUpdatedAt] = useState("");
   const [absentRows, setAbsentRows] = useState([]);
   const [absentFileName, setAbsentFileName] = useState("");
   const [error, setError] = useState("");
@@ -129,20 +125,6 @@ export default function HomePage() {
   const [highlightLimit, setHighlightLimit] = useState(3);
 
   useEffect(() => {
-    try {
-      const rawMaster = localStorage.getItem(MASTER_STORAGE_KEY);
-      if (rawMaster) {
-        const parsed = JSON.parse(rawMaster);
-        if (Array.isArray(parsed?.rows)) {
-          setMasterRows(parsed.rows);
-          setMasterFileName(parsed.fileName || "Master CSV");
-          setMasterUpdatedAt(parsed.updatedAt || "");
-        }
-      }
-    } catch {
-      localStorage.removeItem(MASTER_STORAGE_KEY);
-    }
-
     try {
       const rawAbsent = localStorage.getItem(ABSENT_STORAGE_KEY);
       if (rawAbsent) {
@@ -158,9 +140,9 @@ export default function HomePage() {
   }, []);
 
   const matchedRows = useMemo(() => {
-    if (!masterRows.length || !absentRows.length) return [];
+    if (!absentRows.length) return [];
 
-    const masterHeaders = Object.keys(masterRows[0] || {});
+    const masterHeaders = [];
     const absentHeaders = Object.keys(absentRows[0] || {});
 
     const masterFirstNameKey = findColumnKeySafe(masterHeaders, ["first name", "firstname", "given name"], ["date"]);
@@ -195,22 +177,7 @@ export default function HomePage() {
       return [];
     }
 
-    const masterPrepared = masterRows.map((row) => {
-      const firstName = masterFirstNameKey ? String(row[masterFirstNameKey] ?? "") : "";
-      const lastName = masterLastNameKey ? String(row[masterLastNameKey] ?? "") : "";
-      const combinedFullName = `${firstName} ${lastName}`.trim();
-      const fallbackName = masterNameKey ? String(row[masterNameKey] ?? "") : "";
-      const displayName = combinedFullName || fallbackName;
-
-      return {
-        raw: row,
-        memberName: displayName,
-        normalizedName: normalize(displayName),
-        mobile: cleanMobile(masterMobileKey ? row[masterMobileKey] : ""),
-        followup: String(masterFollowupKey ? row[masterFollowupKey] : "").trim(),
-        absentCount: toNumber(masterAbsentKey ? row[masterAbsentKey] : 0),
-      };
-    });
+    const masterPrepared = [];
 
     const aggregatedWeekly = new Map();
 
@@ -315,10 +282,10 @@ export default function HomePage() {
         };
       })
       .filter(Boolean);
-  }, [masterRows, absentRows]);
+  }, [absentRows]);
 
   const hasData = matchedRows.length > 0;
-  const hasSessionData = masterRows.length > 0 || absentRows.length > 0 || matchedRows.length > 0;
+  const hasSessionData = absentRows.length > 0 || matchedRows.length > 0;
 
   useEffect(() => {
     if (hasData && resultsRef.current) {
@@ -434,41 +401,6 @@ export default function HomePage() {
       .sort((a, b) => b.count - a.count);
   }, [filteredRows]);
 
-  const uploadMasterCsv = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const input = event.currentTarget;
-
-    setError("");
-
-    try {
-      const { rows, headers } = await parseCsvFile(file);
-
-      const hasName = Boolean(findColumnKey(headers, ["name", "first", "member"]));
-      const hasMobile = Boolean(findColumnKey(headers, ["mobile", "phone", "contact", "number", "whatsapp"]));
-
-      if (!hasName || !hasMobile) {
-        setError("Master CSV must contain at least one name-related and one mobile-related column.");
-        return;
-      }
-
-      const payload = {
-        rows,
-        fileName: file.name,
-        updatedAt: new Date().toISOString(),
-      };
-
-      localStorage.setItem(MASTER_STORAGE_KEY, JSON.stringify(payload));
-      setMasterRows(rows);
-      setMasterFileName(file.name);
-      setMasterUpdatedAt(payload.updatedAt);
-    } catch {
-      setError("Unable to parse Master CSV. Please upload a valid file.");
-    } finally {
-      input.value = "";
-    }
-  };
-
   const uploadWeeklyAbsentCsv = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -494,17 +426,6 @@ export default function HomePage() {
     } finally {
       input.value = "";
     }
-  };
-
-  const clearMasterDatabase = () => {
-    localStorage.removeItem(MASTER_STORAGE_KEY);
-    localStorage.removeItem(ABSENT_STORAGE_KEY);
-    setMasterRows([]);
-    setMasterFileName("");
-    setMasterUpdatedAt("");
-    setAbsentRows([]);
-    setAbsentFileName("");
-    setSelectedKaryakarta("All");
   };
 
   const clearWeeklyData = () => {
@@ -559,35 +480,10 @@ export default function HomePage() {
           </div>
 
           <div className="grid gap-4 p-5 sm:p-6 sm:grid-cols-2 lg:grid-cols-2">
-            <div className="rounded-2xl border border-indigo-100 bg-linear-to-b from-white to-indigo-50/70 p-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Step 1</p>
-              <h2 className="mt-1 text-sm font-bold text-slate-900">Upload Master CSV</h2>
-              <p className="mt-1 text-xs text-slate-600">Saved in browser memory. Upload only when master data changes.</p>
-              <input
-                type="file"
-                accept=".csv,text/csv"
-                onChange={uploadMasterCsv}
-                className="mt-3 block w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-600 file:px-3 file:py-1.5 file:font-semibold file:text-white hover:file:bg-indigo-700"
-              />
-              {masterFileName && (
-                <p className="mt-2 text-xs font-medium text-emerald-700">
-                  Loaded: {masterFileName}
-                  {masterUpdatedAt ? ` (${new Date(masterUpdatedAt).toLocaleString()})` : ""}
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={clearMasterDatabase}
-                className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
-              >
-                Reset Master Database
-              </button>
-            </div>
-
             <div className="rounded-2xl border border-blue-100 bg-linear-to-b from-white to-blue-50/70 p-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Step 2</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Step 1</p>
               <h2 className="mt-1 text-sm font-bold text-slate-900">Upload Weekly Absent CSV</h2>
-              <p className="mt-1 text-xs text-slate-600">Runs fuzzy matching against your saved master database.</p>
+              <p className="mt-1 text-xs text-slate-600">Generates dashboard directly from weekly absent data.</p>
               <input
                 type="file"
                 accept=".csv,text/csv"
@@ -647,7 +543,7 @@ export default function HomePage() {
 
           {!hasData && (
             <div className="mx-5 mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 sm:mx-6">
-              Data is stored per browser. On Vercel, upload Master CSV first and then Weekly Absent CSV to view the dashboard.
+              Data is stored per browser. On Vercel, upload Weekly Absent CSV to view the dashboard.
             </div>
           )}
         </section>
