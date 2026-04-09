@@ -118,6 +118,7 @@ function parseCsvFile(file) {
 
 export default function HomePage() {
   const weeklyTableRef = useRef(null);
+  const resultsRef = useRef(null);
   const [masterRows, setMasterRows] = useState([]);
   const [masterFileName, setMasterFileName] = useState("");
   const [masterUpdatedAt, setMasterUpdatedAt] = useState("");
@@ -320,7 +321,18 @@ export default function HomePage() {
   const hasSessionData = masterRows.length > 0 || absentRows.length > 0 || matchedRows.length > 0;
 
   useEffect(() => {
-    if (!hasSessionData) return undefined;
+    if (hasData && resultsRef.current) {
+      resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [hasData]);
+
+  useEffect(() => {
+    if (!hasSessionData) {
+      localStorage.removeItem(MATCHED_ROWS_STORAGE_KEY);
+      return undefined;
+    }
+
+    localStorage.setItem(MATCHED_ROWS_STORAGE_KEY, JSON.stringify(matchedRows));
 
     const handleBeforeUnload = (event) => {
       event.preventDefault();
@@ -347,16 +359,9 @@ export default function HomePage() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("keydown", handleRefreshKeys);
     };
-  }, [hasSessionData]);
+  }, [hasSessionData, matchedRows]);
 
-  useEffect(() => {
-    if (!matchedRows.length) {
-      localStorage.removeItem(MATCHED_ROWS_STORAGE_KEY);
-      return;
-    }
 
-    localStorage.setItem(MATCHED_ROWS_STORAGE_KEY, JSON.stringify(matchedRows));
-  }, [matchedRows]);
 
   const karyakartaOptions = useMemo(() => {
     const names = new Set(matchedRows.map((row) => row.followup || "Unassigned"));
@@ -432,6 +437,7 @@ export default function HomePage() {
   const uploadMasterCsv = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    const input = event.currentTarget;
 
     setError("");
 
@@ -458,12 +464,15 @@ export default function HomePage() {
       setMasterUpdatedAt(payload.updatedAt);
     } catch {
       setError("Unable to parse Master CSV. Please upload a valid file.");
+    } finally {
+      input.value = "";
     }
   };
 
   const uploadWeeklyAbsentCsv = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    const input = event.currentTarget;
 
     setError("");
     setSelectedKaryakarta("All");
@@ -482,6 +491,8 @@ export default function HomePage() {
       localStorage.setItem(ABSENT_STORAGE_KEY, JSON.stringify({ rows, fileName: file.name }));
     } catch {
       setError("Unable to parse Weekly Absent CSV. Please upload a valid file.");
+    } finally {
+      input.value = "";
     }
   };
 
@@ -548,7 +559,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid gap-4 p-5 sm:p-6 sm:grid-cols-2 lg:grid-cols-2">
-            <div className="hidden rounded-2xl border border-indigo-100 bg-linear-to-b from-white to-indigo-50/70 p-4 shadow-sm">
+            <div className="rounded-2xl border border-indigo-100 bg-linear-to-b from-white to-indigo-50/70 p-4 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Step 1</p>
               <h2 className="mt-1 text-sm font-bold text-slate-900">Upload Master CSV</h2>
               <p className="mt-1 text-xs text-slate-600">Saved in browser memory. Upload only when master data changes.</p>
@@ -633,10 +644,16 @@ export default function HomePage() {
               {error}
             </div>
           )}
+
+          {!hasData && (
+            <div className="mx-5 mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 sm:mx-6">
+              Data is stored per browser. On Vercel, upload Master CSV first and then Weekly Absent CSV to view the dashboard.
+            </div>
+          )}
         </section>
 
         {hasData && (
-          <>
+          <div ref={resultsRef} className="scroll-mt-4">
             <section className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               <div className="rounded-2xl border border-indigo-100 bg-white p-3 sm:p-4 shadow-md shadow-indigo-100/60 flex flex-col justify-center">
                 <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-indigo-500 truncate">Total Follow-ups</p>
@@ -775,7 +792,7 @@ export default function HomePage() {
                 </ResponsiveContainer>
               </div>
             </section>
-          </>
+          </div>
         )}
       </div>
     </main>
