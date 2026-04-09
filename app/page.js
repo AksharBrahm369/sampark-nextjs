@@ -143,25 +143,36 @@ export default function HomePage() {
   }, []);
 
   const matchedRows = useMemo(() => {
-    if (!masterRows.length || !absentRows.length) return [];
+    if (!absentRows.length) return [];
 
     const masterHeaders = Object.keys(masterRows[0] || {});
     const absentHeaders = Object.keys(absentRows[0] || {});
+    const canUseMasterMatching = masterRows.length > 0;
 
-    const masterFirstNameKey = findColumnKeySafe(masterHeaders, ["first name", "firstname", "given name"], ["date"]);
-    const masterLastNameKey = findColumnKeySafe(masterHeaders, ["last name", "lastname", "surname", "family name"], ["date"]);
-    const masterNameKey = findColumnKeySafe(
-      masterHeaders,
-      ["member name", "full name", "name"],
-      ["karyakarta", "follow", "volunteer", "sevak", "assigned"],
-    );
-    const masterMobileKey = findColumnKeySafe(masterHeaders, ["mobile", "phone", "contact", "whatsapp", "number"]);
-    const masterFollowupKey = findColumnKeySafe(
-      masterHeaders,
-      ["followup", "follow up", "karyakarta", "karya", "volunteer", "assigned", "sevak", "caller"],
-      ["member", "student", "parent"],
-    );
-    const masterAbsentKey = findColumnKey(masterHeaders, ["absent", "absence", "missed"]);
+    const masterFirstNameKey = canUseMasterMatching
+      ? findColumnKeySafe(masterHeaders, ["first name", "firstname", "given name"], ["date"])
+      : null;
+    const masterLastNameKey = canUseMasterMatching
+      ? findColumnKeySafe(masterHeaders, ["last name", "lastname", "surname", "family name"], ["date"])
+      : null;
+    const masterNameKey = canUseMasterMatching
+      ? findColumnKeySafe(
+          masterHeaders,
+          ["member name", "full name", "name"],
+          ["karyakarta", "follow", "volunteer", "sevak", "assigned"],
+        )
+      : null;
+    const masterMobileKey = canUseMasterMatching
+      ? findColumnKeySafe(masterHeaders, ["mobile", "phone", "contact", "whatsapp", "number"])
+      : null;
+    const masterFollowupKey = canUseMasterMatching
+      ? findColumnKeySafe(
+          masterHeaders,
+          ["followup", "follow up", "karyakarta", "karya", "volunteer", "assigned", "sevak", "caller"],
+          ["member", "student", "parent"],
+        )
+      : null;
+    const masterAbsentKey = canUseMasterMatching ? findColumnKey(masterHeaders, ["absent", "absence", "missed"]) : null;
 
     const absentNameKey = findColumnKeySafe(
       absentHeaders,
@@ -180,22 +191,24 @@ export default function HomePage() {
       return [];
     }
 
-    const masterPrepared = masterRows.map((row) => {
-      const firstName = masterFirstNameKey ? String(row[masterFirstNameKey] ?? "") : "";
-      const lastName = masterLastNameKey ? String(row[masterLastNameKey] ?? "") : "";
-      const combinedFullName = `${firstName} ${lastName}`.trim();
-      const fallbackName = masterNameKey ? String(row[masterNameKey] ?? "") : "";
-      const displayName = combinedFullName || fallbackName;
+    const masterPrepared = canUseMasterMatching
+      ? masterRows.map((row) => {
+          const firstName = masterFirstNameKey ? String(row[masterFirstNameKey] ?? "") : "";
+          const lastName = masterLastNameKey ? String(row[masterLastNameKey] ?? "") : "";
+          const combinedFullName = `${firstName} ${lastName}`.trim();
+          const fallbackName = masterNameKey ? String(row[masterNameKey] ?? "") : "";
+          const displayName = combinedFullName || fallbackName;
 
-      return {
-        raw: row,
-        memberName: displayName,
-        normalizedName: normalize(displayName),
-        mobile: cleanMobile(masterMobileKey ? row[masterMobileKey] : ""),
-        followup: String(masterFollowupKey ? row[masterFollowupKey] : "").trim(),
-        absentCount: toNumber(masterAbsentKey ? row[masterAbsentKey] : 0),
-      };
-    });
+          return {
+            raw: row,
+            memberName: displayName,
+            normalizedName: normalize(displayName),
+            mobile: cleanMobile(masterMobileKey ? row[masterMobileKey] : ""),
+            followup: String(masterFollowupKey ? row[masterFollowupKey] : "").trim(),
+            absentCount: toNumber(masterAbsentKey ? row[masterAbsentKey] : 0),
+          };
+        })
+      : [];
 
     const aggregatedWeekly = new Map();
 
@@ -227,7 +240,21 @@ export default function HomePage() {
       }
     });
 
-    return Array.from(aggregatedWeekly.values())
+    const weeklyRows = Array.from(aggregatedWeekly.values());
+
+    if (!canUseMasterMatching) {
+      return weeklyRows
+        .map(({ absentName, absentMobile, weeklyAbsentCount, weeklyFollowup }) => ({
+          memberName: absentName,
+          mobile: absentMobile,
+          followup: weeklyFollowup || "Unassigned",
+          absentCount: Math.max(1, weeklyAbsentCount),
+          matchStatus: "Absent only",
+        }))
+        .filter(Boolean);
+    }
+
+    return weeklyRows
       .map((weeklyRow) => {
         const { absentName, normalizedAbsentName, absentMobile, weeklyAbsentCount, weeklyFollowup } = weeklyRow;
 
