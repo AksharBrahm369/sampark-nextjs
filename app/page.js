@@ -124,7 +124,7 @@ export default function HomePage() {
   const [absentFileName, setAbsentFileName] = useState("");
   const [error, setError] = useState("");
   const [selectedKaryakarta, setSelectedKaryakarta] = useState("All");
-  const [highlightLimit, setHighlightLimit] = useState(4);
+  const [highlightLimit, setHighlightLimit] = useState(3);
 
   useEffect(() => {
     try {
@@ -589,11 +589,9 @@ export default function HomePage() {
                 type="number"
                 min="1"
                 max="100"
-                step="1"
-                inputMode="numeric"
                 value={highlightLimit}
                 onChange={(event) => setHighlightLimit(Math.max(1, Number(event.target.value) || 1))}
-                className="mt-1 w-full max-w-28 rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-base font-semibold text-slate-700 outline-none focus:border-indigo-500 sm:max-w-32 sm:text-sm"
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-500"
               />
 
               <p className="mt-3 text-xs text-slate-500">
