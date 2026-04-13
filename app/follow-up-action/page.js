@@ -64,7 +64,7 @@ export default function FollowUpActionPage() {
     <main className="min-h-screen bg-linear-to-br from-slate-100 via-blue-50 to-indigo-100 px-4 py-6 sm:px-6 lg:px-8">
       <section className="mx-auto max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/70">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 sm:py-4">
-          <h1 className="text-sm font-bold text-slate-900 sm:text-base">Follow-up Action Page</h1>
+          <h1 className="text-sm font-bold text-slate-900 sm:text-base">Follow-up Follow Up Page</h1>
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <Link
               href="/"

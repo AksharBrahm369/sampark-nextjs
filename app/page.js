@@ -550,7 +550,7 @@ export default function HomePage() {
 
         {hasData && (
           <div ref={resultsRef} className="scroll-mt-4">
-            <section className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <section className="mb-6 grid grid-cols-2 gap-3 sm:gap-4">
               <div className="rounded-2xl border border-indigo-100 bg-white p-3 sm:p-4 shadow-md shadow-indigo-100/60 flex flex-col justify-center">
                 <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-indigo-500 truncate">Total Follow-ups</p>
                 <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-black text-slate-900">{stats.total}</p>
@@ -577,7 +577,7 @@ export default function HomePage() {
                     href="/follow-up-action"
                     className="flex-1 rounded-lg bg-slate-800 px-3 py-2 text-center text-xs font-semibold text-white transition hover:bg-slate-900 sm:flex-none sm:py-1.5"
                   >
-                    Open Action Page
+                    Open Follow Up Page
                   </Link>
                   <button
                     type="button"
